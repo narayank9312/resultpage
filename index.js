@@ -1,7 +1,13 @@
-const {ApolloServer, gql} = require('apollo-server');
+const {PubSub, ApolloServer, gql} = require('apollo-server');
 const {PrismaClient, prisma} = require('@prisma/client');
 
 const client = new PrismaClient();
+
+const pp = new PubSub();
+
+const subscriptionsName = {
+  newUserRegistration: 'newUserRegistration',
+};
 
 const typeDefs = gql`
   type Book {
@@ -25,6 +31,10 @@ const typeDefs = gql`
     id: Int!
   }
 
+  type Subscription {
+    newUserRegistration: RegistredUser!
+  }
+
   type Query {
     getRegistration: [RegistredUser]
   }
@@ -42,6 +52,12 @@ const server = new ApolloServer({
     return {isAdmin: true};
   },
   resolvers: {
+    Subscription: {
+      newUserRegistration: {
+        subscribe: () =>
+          pp.asyncIterator([subscriptionsName.newUserRegistration]),
+      },
+    },
     Mutation: {
       removeAllUsers: (_, args, ctx) =>
         ctx.isAdmin &&
@@ -62,6 +78,12 @@ const server = new ApolloServer({
       registerUser: (_, args, ctx) =>
         client.registration
           .create({data: args.user})
+          .then((user) => {
+            console.log('new user is registerd');
+            pp.publish(subscriptionsName.newUserRegistration, {
+              [subscriptionsName.newUserRegistration]: {...user, id: user.Id},
+            });
+          })
           .then(() => true)
           .catch(() => false),
     },
@@ -76,4 +98,4 @@ const server = new ApolloServer({
   },
 });
 
-server.listen(3000).then((val) => console.log(val.url));
+server.listen(3001).then((val) => console.log(val.url));
