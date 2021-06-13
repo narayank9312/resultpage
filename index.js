@@ -79,7 +79,6 @@ const server = new ApolloServer({
         client.registration
           .create({data: args.user})
           .then((user) => {
-            console.log('new user is registerd');
             pp.publish(subscriptionsName.newUserRegistration, {
               [subscriptionsName.newUserRegistration]: {...user, id: user.Id},
             });
